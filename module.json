@@ -1,7 +1,7 @@
 {
   "name": "mbed-drivers",
   "version": "0.8.3",
-  "description": "mbed SDK",
+  "description": "mbed SDK (from AST)",
   "keywords": [
     "mbed"
   ],
