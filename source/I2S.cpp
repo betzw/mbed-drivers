@@ -13,7 +13,7 @@ using namespace util;
 CircularBuffer<I2S::transaction_t, TRANSACTION_QUEUE_SIZE_I2S> I2S::_transaction_buffer;
 #endif
 
-I2S::I2S(PinName dpin, PinName clk, PinName wsel, PinName fdpin) :
+I2S::I2S(PinName dpin, PinName clk, PinName wsel, PinName fdpin, PinName mck) :
         _i2s(),
 	_irq_tx(this), _irq_rx(this),
         _dbits(16),
@@ -23,7 +23,7 @@ I2S::I2S(PinName dpin, PinName clk, PinName wsel, PinName fdpin) :
 	_mode(MASTER_TX),
 	_busy(false),
         _hz(44100) {
-    i2s_init(&_i2s, dpin, clk, wsel, fdpin, _mode);
+    i2s_init(&_i2s, dpin, clk, wsel, fdpin, mck, _mode);
     i2s_format(&_i2s, _dbits, _fbits, _polarity);
     i2s_audio_frequency(&_i2s, _hz);
     i2s_set_protocol(&_i2s, _protocol);
@@ -111,6 +111,11 @@ int I2S::get_transfer_status()
         return -1;
     }
     return  0;
+}
+
+unsigned int I2S::get_module()
+{
+	return i2s_get_module(&_i2s);
 }
 
 int I2S::queue_transfer(const transaction_data_t &td)

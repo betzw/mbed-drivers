@@ -44,11 +44,12 @@ public:
     /** Create a I2S master connected to the specified pins
      *
      *  @param dpin  I2S data input/output pin
-     *  @param clk   I2S Clock output pin
+     *  @param clk   I2S clock output pin
      *  @param wsel  I2S word select output pin (might be NC for PDM sources)
      *  @param fdpin I2S data input pin (for full-duplex operation, default = NC)
+     *  @param mck   I2S master clock output (additional pin when needed for some external audio devices, default = NC)
      */
-    I2S(PinName dpin, PinName clk, PinName wsel, PinName fdpin = NC);
+    I2S(PinName dpin, PinName clk, PinName wsel, PinName fdpin = NC, PinName mck = NC);
 
     /** Configure the data transmission format
      *
@@ -162,6 +163,12 @@ public:
      *  @return -1 if a transaction is on-going, zero otherwise
     */
     int get_transfer_status();
+
+    /** Get internal module id
+     *
+     *  @return internal module id
+    */
+    unsigned int get_module();
 
 protected:
     /** I2S TX DMA IRQ handler
