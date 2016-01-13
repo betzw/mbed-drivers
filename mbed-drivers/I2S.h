@@ -18,7 +18,7 @@ namespace mbed {
 /** A I2S Master/Slave, used for communicating with I2S slave devices
  *
  * The default format is set to master transmission mode, 16 data bits & 16 bits per frame,
- * clock polarity 0, protocol PCM_SHORT, and a clock frequency of 44.1kHz
+ * clock polarity 0, protocol PHILIPS, and a clock frequency of 44.1kHz
  *
  * NOTE: This information will be deprecated soon.
  * Most I2S devices will also require Reset signals. These
@@ -30,7 +30,7 @@ public:
     /** I2S transfer callback
      *  @param Buffer the tx buffer
      *  @param Buffer the rx buffer
-     *  @param int the event that triggered the callback
+     *  @param int the event that triggered the callbacki2s_init
      */
     typedef mbed::util::FunctionPointer3<void, Buffer, Buffer, int> event_callback_t;
 private:
