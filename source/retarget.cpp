@@ -21,9 +21,9 @@
 #include "compiler-polyfill/attributes.h"
 #include "cmsis.h"
 #include <errno.h>
-#include "mbed-drivers/app.h"
 #include "minar/minar.h"
 #include "mbed-hal/init_api.h"
+#include "mbed-hal/serial_api.h"
 #include "core_generic.h"
 
 #if defined(__ARMCC_VERSION)
@@ -102,8 +102,8 @@ FileHandle::~FileHandle() {
 }
 
 #if DEVICE_SERIAL
-extern int stdio_uart_inited;
-extern serial_t stdio_uart;
+static int stdio_uart_inited;
+static serial_t stdio_uart;
 #endif
 
 static void init_serial() {
@@ -111,6 +111,7 @@ static void init_serial() {
     if (stdio_uart_inited) return;
     serial_init(&stdio_uart, STDIO_UART_TX, STDIO_UART_RX);
     serial_baud(&stdio_uart, STDIO_DEFAULT_BAUD);
+    stdio_uart_inited = 1;
 #endif
 }
 
@@ -490,6 +491,7 @@ extern "C" void __iar_argc_argv() {
 #endif
 
 // the user should set up their application in app_start
+extern void app_start(int, char**);
 extern "C" int main(void) {
     minar::Scheduler::postCallback(
         mbed::util::FunctionPointer2<void, int, char**>(&app_start).bind(0, NULL)
