@@ -178,7 +178,6 @@ void I2S::dequeue_transaction()
 
 void I2S::irq_handler_asynch_rx(void)
 {
-	// betzw - TODO
     int event = i2s_irq_handler_asynch(&_i2s, I2S_RX_EVENT);
     if (_current_transaction._transaction.callback && (event & I2S_EVENT_ALL)) {
         minar::Scheduler::postCallback(
