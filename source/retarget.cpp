@@ -21,15 +21,14 @@
 #include "compiler-polyfill/attributes.h"
 #include "cmsis.h"
 #include <errno.h>
-#include "mbed-drivers/app.h"
 #include "minar/minar.h"
 #include "mbed-hal/init_api.h"
+#include "mbed-hal/serial_api.h"
 #include "core_generic.h"
 
 #if defined(__ARMCC_VERSION)
 #   include <rt_sys.h>
 #   define PREFIX(x)    _sys##x
-#   define OPEN_MAX     _SYS_OPEN
 #   ifdef __MICROLIB
 #       pragma import(__use_full_stdio)
 #   endif
@@ -37,7 +36,6 @@
 #elif defined(__ICCARM__)
 #   include <yfuns.h>
 #   define PREFIX(x)        _##x
-#   define OPEN_MAX         16
 
 #   define STDIN_FILENO     0
 #   define STDOUT_FILENO    1
@@ -50,6 +48,10 @@
 #   define PREFIX(x)    x
 #endif
 
+#ifndef YOTTA_CFG_MBED_MAX_FILEHANDLES
+#   define YOTTA_CFG_MBED_MAX_FILEHANDLES 16
+#endif
+
 #ifndef pid_t
  typedef int pid_t;
 #endif
@@ -57,7 +59,19 @@
  typedef char * caddr_t;
 #endif
 
+#ifndef YOTTA_CFG_MBED_OS_STDIO_DEFAULT_BAUD
+#define YOTTA_CFG_MBED_OS_STDIO_DEFAULT_BAUD 115200
+#endif
+
+#define STDIO_DEFAULT_BAUD YOTTA_CFG_MBED_OS_STDIO_DEFAULT_BAUD
+
+
 using namespace mbed;
+#ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
+#include "mbed-drivers/test_env.h"
+extern bool coverage_report;
+#endif
+
 
 #if defined(__MICROLIB) && (__ARMCC_VERSION>5030000)
 // Before version 5.03, we were using a patched version of microlib with proper names
@@ -76,7 +90,7 @@ extern const char __stderr_name[] = "/stderr";
  * put it in a filehandles array and return the index into that array
  * (or rather index+3, as filehandles 0-2 are stdin/out/err).
  */
-static FileHandle *filehandles[OPEN_MAX];
+static FileHandle *filehandles[YOTTA_CFG_MBED_MAX_FILEHANDLES];
 
 FileHandle::~FileHandle() {
     /* Remove all open filehandles for this */
@@ -88,14 +102,16 @@ FileHandle::~FileHandle() {
 }
 
 #if DEVICE_SERIAL
-extern int stdio_uart_inited;
-extern serial_t stdio_uart;
+static int stdio_uart_inited;
+static serial_t stdio_uart;
 #endif
 
 static void init_serial() {
 #if DEVICE_SERIAL
     if (stdio_uart_inited) return;
     serial_init(&stdio_uart, STDIO_UART_TX, STDIO_UART_RX);
+    serial_baud(&stdio_uart, STDIO_DEFAULT_BAUD);
+    stdio_uart_inited = 1;
 #endif
 }
 
@@ -133,13 +149,13 @@ static inline int openmode_to_posix(int openmode) {
 }
 
 extern "C" FILEHANDLE PREFIX(_open)(const char* name, int openmode) {
-    #if defined(__MICROLIB) && (__ARMCC_VERSION>5030000)
+#if defined(__MICROLIB) && (__ARMCC_VERSION>5030000)
     // Before version 5.03, we were using a patched version of microlib with proper names
     // This is the workaround that the microlib author suggested us
     static int n = 0;
     if (!std::strcmp(name, ":tt")) return n++;
 
-    #else
+#else
     /* Use the posix convention that stdin,out,err are filehandles 0,1,2.
      */
     if (std::strcmp(name, __stdin_name) == 0) {
@@ -152,7 +168,15 @@ extern "C" FILEHANDLE PREFIX(_open)(const char* name, int openmode) {
         init_serial();
         return 2;
     }
-    #endif
+#ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
+    else if(coverage_report) {
+        init_serial();
+        notify_coverage_start(name);
+        return 3;
+    }
+#endif
+
+#endif
 
     // find the first empty slot in filehandles
     unsigned int fh_i;
@@ -194,6 +218,13 @@ extern "C" FILEHANDLE PREFIX(_open)(const char* name, int openmode) {
 }
 
 extern "C" int PREFIX(_close)(FILEHANDLE fh) {
+#ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
+    if(coverage_report) {
+        notify_coverage_end();
+        return 0;
+    }
+#endif
+
     if (fh < 3) return 0;
 
     FileHandle* fhc = filehandles[fh-3];
@@ -218,7 +249,16 @@ extern "C" int PREFIX(_write)(FILEHANDLE fh, const unsigned char *buffer, unsign
         }
 #endif
         n = length;
-    } else {
+    }
+#ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
+    else if(coverage_report && fh == 3) {
+        for (unsigned int i = 0; i < length; i++) {
+            printf("%02x", buffer[i]);
+        }
+        n = length;
+    }
+#endif
+    else {
         FileHandle* fhc = filehandles[fh-3];
         if (fhc == NULL) return -1;
 
@@ -451,6 +491,7 @@ extern "C" void __iar_argc_argv() {
 #endif
 
 // the user should set up their application in app_start
+extern void app_start(int, char**);
 extern "C" int main(void) {
     minar::Scheduler::postCallback(
         mbed::util::FunctionPointer2<void, int, char**>(&app_start).bind(0, NULL)
