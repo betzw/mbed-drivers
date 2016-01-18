@@ -15,10 +15,12 @@
 
 namespace mbed {
 
-/** A I2S Master/Slave, used for communicating with I2S slave devices
+/** A I2S Master, used for communicating with I2S slave devices
  *
  * The default format is set to master transmission mode, 16 data bits & 16 bits per frame,
  * clock polarity 0, protocol PHILIPS, and a clock frequency of 44.1kHz
+ *
+ * NOTE: I2S Slave class/mode has still to be defined & implemented!
  *
  * NOTE: This information will be deprecated soon.
  * Most I2S devices will also require Reset signals. These
@@ -33,6 +35,7 @@ public:
      *  @param int the event that triggered the callbacki2s_init
      */
     typedef mbed::util::FunctionPointer3<void, Buffer, Buffer, int> event_callback_t;
+
 private:
     typedef struct {
     	TwoWayTransaction<event_callback_t> _transaction;
@@ -81,10 +84,12 @@ public:
 
     class I2STransferAdder {
         friend I2S;
+
     private:
         I2STransferAdder(I2S *owner);
         const I2STransferAdder & operator =(const I2STransferAdder &a);
         I2STransferAdder(const I2STransferAdder &a);
+
     public:
         /** Set the transmit buffer
          *  Sets the transmit buffer pointer and transmit size.
@@ -94,23 +99,25 @@ public:
          *  @param[in] txBuf a pointer to the transmit buffer
          *  @param[in] txSize the size of the transmit buffer
          *  @return a reference to the I2STransferAdder
-     */
+         */
         I2STransferAdder & tx(void *txBuf, size_t txSize);
+
         /** Set the receive buffer
          *  Sets the receive buffer pointer and receive size
-     *
+         *
          *  NOTE: Repeated calls to rx() override buffer parameters.
          *
          *  @param[in] rxBuf a pointer to the receive buffer
          *  @param[in] rxSize the size of the receive buffer
          *  @return a reference to the I2STransferAdder
-     */
+         */
         I2STransferAdder & rx(void *rxBuf, size_t rxSize);
+
         /** Set the I2S Event callback
          *  Sets the callback to invoke when an event occurs and the mask of
          *  which events should trigger it. The callback will be scheduled to
          *  execute in main context, not invoked in interrupt context.
-     *
+         *
          *  NOTE: Repeated calls to callback() override callback parameters.
          *
          *  @param[in] cb The event callback function
@@ -122,21 +129,25 @@ public:
         I2STransferAdder & circular(bool);
 
         I2STransferAdder & callback(const event_callback_t &cb, int event);
+
         /** Initiate the transfer
          *  apply() allows the user to explicitly activate the transfer and obtain
          *  the return code from the validation of the transfer parameters.
          * @return Zero if the transfer has started, or -1 if I2S peripheral is busy
          */
         int apply();
+
         ~I2STransferAdder();
+
     private:
         transaction_data_t _td;
         bool _applied;
         int _rc;
         I2S * _owner;
     };
+
     /** Start an I2S transfer
-     *  The transfer() method returns a I2STransferAdder.  This class allows each
+     *  The transfer() method returns a I2STransferAdder. This class allows each
      *  parameter to be set with a dedicated method.  This way, the many optional
      *  parameters are easy to identify and set.
      *
@@ -161,48 +172,48 @@ public:
     /** Get transfer status
      *
      *  @return -1 if a transaction is on-going, zero otherwise
-    */
+     */
     int get_transfer_status();
 
     /** Get internal module id
      *
      *  @return internal module id
-    */
+     */
     unsigned int get_module();
 
 protected:
     /** I2S TX DMA IRQ handler
      *
-    */
+     */
     void irq_handler_asynch_tx(void);
 
     /** I2S RX DMA IRQ handler
      *
-    */
+     */
     void irq_handler_asynch_rx(void);
 
     /** Add a transfer to the queue
      * @param data Transaction data
      * @return Zero if a transfer was added to the queue, or -1 if the queue is full
-    */
+     */
     int queue_transfer(const transaction_data_t &td);
 
     /** Configures a callback, i2s peripheral and initiate a new transfer
      *
      * @param data Transaction data
-    */
+     */
     void start_transfer(const transaction_data_t &td);
 
 #if TRANSACTION_QUEUE_SIZE_I2S
     /** Start a new transaction
      *
      *  @param data Transaction data
-    */
+     */
     void start_transaction(transaction_data_t *data);
 
     /** Dequeue a transaction
      *
-    */
+     */
     void dequeue_transaction();
 #endif // TRANSACTION_QUEUE_SIZE_I2S
 
@@ -214,6 +225,7 @@ protected:
 
 public:
     virtual ~I2S() {
+    	/* betzw - TODO: cleanup has still to be revised completely! */
     }
 
 protected:
@@ -227,6 +239,7 @@ protected:
     transaction_data_t _current_transaction;
 
     void aquire(void);
+
     static I2S *_owner;
     int _dbits;
     int _fbits;
