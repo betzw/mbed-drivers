@@ -143,7 +143,7 @@ void I2S::start_transfer(const transaction_data_t &td)
     _current_transaction = td;
     _irq_tx.callback(&I2S::irq_handler_asynch_tx);
     _irq_rx.callback(&I2S::irq_handler_asynch_rx);
-    i2s_master_transfer(&_i2s,
+    i2s_transfer(&_i2s,
     		td._transaction.tx_buffer.buf, td._transaction.tx_buffer.length,
 			td._transaction.rx_buffer.buf, td._transaction.rx_buffer.length,
 			td._circular,
@@ -194,7 +194,6 @@ void I2S::irq_handler_asynch_rx(void)
 
 void I2S::irq_handler_asynch_tx(void)
 {
-	// betzw - TODO
     int event = i2s_irq_handler_asynch(&_i2s, I2S_TX_EVENT);
     if (_current_transaction._transaction.callback && (event & I2S_EVENT_ALL)) {
         minar::Scheduler::postCallback(

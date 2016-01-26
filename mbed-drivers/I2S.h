@@ -15,12 +15,12 @@
 
 namespace mbed {
 
-/** A I2S Master, used for communicating with I2S slave devices
+/** A I2S Master/Slave, used for communicating with I2S slave/master devices
  *
  * The default format is set to master transmission mode, 16 data bits & 16 bits per frame,
  * clock polarity 0, protocol PHILIPS, and a clock frequency of 44.1kHz
  *
- * NOTE: I2S Slave class/mode has still to be defined & implemented!
+ * TODO: "direct" PDM support
  *
  * NOTE: This information will be deprecated soon.
  * Most I2S devices will also require Reset signals. These
