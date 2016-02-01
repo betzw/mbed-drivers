@@ -146,7 +146,7 @@ void I2S::start_transfer(const transaction_data_t &td)
     i2s_transfer(&_i2s,
     		td._transaction.tx_buffer.buf, td._transaction.tx_buffer.length,
 			td._transaction.rx_buffer.buf, td._transaction.rx_buffer.length,
-			td._circular,
+			td._circular, td._priority,
             _irq_tx.entry(), _irq_rx.entry(), td._transaction.event);
 }
 
@@ -215,6 +215,7 @@ I2S::I2STransferAdder::I2STransferAdder(I2S *owner) :
     _td._transaction.rx_buffer.length = 0;
     _td._transaction.callback = event_callback_t((void (*)(Buffer, Buffer, int))NULL);
     _td._circular = false;
+    _td._priority = MEDIUM;
 }
 const I2S::I2STransferAdder & I2S::I2STransferAdder::operator =(const I2S::I2STransferAdder &a)
 {
@@ -244,6 +245,11 @@ I2S::I2STransferAdder & I2S::I2STransferAdder::rx(void *rxBuf, size_t rxSize)
 I2S::I2STransferAdder & I2S::I2STransferAdder::circular(bool mode)
 {
 	_td._circular = mode;
+	return *this;
+}
+I2S::I2STransferAdder & I2S::I2STransferAdder::priority(i2s_dma_prio_t prio)
+{
+	_td._priority = prio;
 	return *this;
 }
 I2S::I2STransferAdder & I2S::I2STransferAdder::callback(const event_callback_t &cb, int event)

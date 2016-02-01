@@ -40,6 +40,7 @@ private:
     typedef struct {
     	TwoWayTransaction<event_callback_t> _transaction;
     	bool _circular;
+    	i2s_dma_prio_t _priority;
     } transaction_data_t;
     typedef Transaction<I2S, transaction_data_t> transaction_t;
 
@@ -125,8 +126,9 @@ public:
          *  @return a reference to the I2STransferAdder
          */
 
-        // betzw - TODO: circularity of transfer
-        I2STransferAdder & circular(bool);
+        I2STransferAdder & circular(bool); // default is 'false'
+
+        I2STransferAdder & priority(i2s_dma_prio_t); // default is 'MEDIUM'
 
         I2STransferAdder & callback(const event_callback_t &cb, int event);
 
