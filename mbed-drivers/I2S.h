@@ -228,6 +228,8 @@ protected:
 public:
     virtual ~I2S() {
     	/* betzw - TODO: cleanup has still to be revised completely! */
+    	abort_all_transfers();
+    	i2s_free(&_i2s);
     }
 
 protected:
