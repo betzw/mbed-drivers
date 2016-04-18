@@ -1,15 +1,16 @@
-/* mbed Microcontroller Library
- * Copyright (c) 2006-2013 ARM Limited
+/*
+ * Copyright (c) 2006-2016, ARM Limited, All Rights Reserved
+ * SPDX-License-Identifier: Apache-2.0
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
@@ -68,9 +69,35 @@
 
 using namespace mbed;
 #ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
+
+#ifdef YOTTA_GREENTEA_CLIENT_VERSION_STRING
+#include "greentea-client/test_env.h"
+#else
 #include "mbed-drivers/test_env.h"
-extern bool coverage_report;
 #endif
+
+bool coverage_report = false;
+const int gcov_fd = 'g' + ((int)'c' << 8);
+
+// Retarget specific code coverage report start notification
+static void retarget_notify_coverage_start(const char *path) {
+#ifdef YOTTA_GREENTEA_CLIENT_VERSION_STRING
+    greentea_notify_coverage_start(path);
+#else
+    notify_coverage_start(path);
+#endif  // YOTTA_GREENTEA_CLIENT_VERSION_STRING
+}
+
+// Retarget specific code coverage report end notification
+static void retarget_notify_coverage_end() {
+#ifdef YOTTA_GREENTEA_CLIENT_VERSION_STRING
+    greentea_notify_coverage_end();
+#else
+    notify_coverage_end();
+#endif  // YOTTA_GREENTEA_CLIENT_VERSION_STRING
+}
+
+#endif  // YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
 
 
 #if defined(__MICROLIB) && (__ARMCC_VERSION>5030000)
@@ -105,21 +132,21 @@ FileHandle::~FileHandle() {
 
 #include "mbed-drivers/Serial.h"
 
-static int stdio_uart_inited;
 
 namespace mbed {
 
-Serial& get_stdio_serial() 
+Serial& get_stdio_serial()
 {
+    static bool stdio_uart_inited = false;
     static Serial stdio_serial(STDIO_UART_TX, STDIO_UART_RX);
-    if (stdio_uart_inited == 0) {
+    if (!stdio_uart_inited) {
         stdio_serial.baud(STDIO_DEFAULT_BAUD);
-        stdio_uart_inited = 1;
+        stdio_uart_inited = true;
     }
     return stdio_serial;
 }
 
-}
+} // namespace mbed
 #endif
 
 static void init_serial() {
@@ -183,9 +210,8 @@ extern "C" FILEHANDLE PREFIX(_open)(const char* name, int openmode) {
     }
 #ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
     else if(coverage_report) {
-        init_serial();
-        notify_coverage_start(name);
-        return 3;
+        retarget_notify_coverage_start(name);
+        return gcov_fd;
     }
 #endif
 
@@ -232,8 +258,8 @@ extern "C" FILEHANDLE PREFIX(_open)(const char* name, int openmode) {
 
 extern "C" int PREFIX(_close)(FILEHANDLE fh) {
 #ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
-    if(coverage_report) {
-        notify_coverage_end();
+    if(coverage_report && fh == gcov_fd) {
+        retarget_notify_coverage_end();
         return 0;
     }
 #endif
@@ -263,9 +289,16 @@ extern "C" int PREFIX(_write)(FILEHANDLE fh, const unsigned char *buffer, unsign
         n = length;
     }
 #ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
-    else if(coverage_report && fh == 3) {
+    else if(coverage_report && fh == gcov_fd) {
         for (unsigned int i = 0; i < length; i++) {
-            printf("%02x", buffer[i]);
+            if (0x00 == buffer[i]) {
+                // Very simple coverage stream compression
+                // Observation: About 30-35% of coverage stream are bytes with value 0x00
+                // Greentea will pick up '.' and replace with "00"
+                printf(".");
+            } else {
+                printf("%02x", buffer[i]);
+            }
         }
         n = length;
     }
@@ -290,6 +323,11 @@ extern "C" int PREFIX(_read)(FILEHANDLE fh, unsigned char *buffer, unsigned int 
 #endif
     (void) mode;
     int n; // n is the number of bytes read
+#ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
+    if(coverage_report && fh == gcov_fd) {
+        return 0;
+    }
+#endif
     if (fh < 3) {
         // only read a character at a time from stdin
 #if DEVICE_SERIAL
@@ -335,6 +373,11 @@ int _lseek(FILEHANDLE fh, int offset, int whence)
 {
     if (fh < 3) return 0;
 
+#ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
+    if(coverage_report && fh == gcov_fd) {
+        return 0;
+    }
+#endif
     FileHandle* fhc = filehandles[fh-3];
     if (fhc == NULL) return -1;
 
@@ -372,6 +415,12 @@ extern "C" int _fstat(int fd, struct stat *st) {
         st->st_mode = S_IFCHR;
         return  0;
     }
+#ifdef YOTTA_CFG_DEBUG_OPTIONS_COVERAGE
+    if (coverage_report && fd == gcov_fd) {
+        st->st_size = 0;
+        return 0;
+    }
+#endif
 
     errno = EBADF;
     return -1;
